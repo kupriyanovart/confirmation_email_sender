@@ -1,0 +1,46 @@
+version: "3.9"
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    hostname: rabbitmq
+    restart: always
+    ports:
+      - "5672:5672"
+
+  web:
+    build: ./services/web
+    links:
+      - rabbitmq
+    depends_on:
+      - rabbitmq
+    command: python manage.py run -h 0.0.0.0
+    volumes:
+      - ./services/web/:/usr/src/app/
+    ports:
+      - "5000:5000"
+    env_file:
+      - services/web/.env.dev
+
+  email_sender:
+    build: ./services/email_sender
+    links:
+      - rabbitmq
+      - web
+    depends_on:
+      - rabbitmq
+    command: python rmq_consumer.py
+    env_file:
+      - services/email_sender/.env.dev
+
+  db:
+    image: postgres:14-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_USER=test_user
+      - POSTGRES_PASSWORD=test_pwd
+      - POSTGRES_DB=test_db
+
+volumes:
+  postgres_data:
